@@ -1,50 +1,58 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
-import { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from "react-native";
+import { useState, useEffect } from "react";
 import AudioTrimmer from "../../src/components/AudioTrimmer";
 import { APP_CONFIG } from "../../src/constants";
+import { exportRingtoneWithAlert } from "../../src/services/ringtoneExport";
+import { getPlatformFormat, getPlatformFormatName } from "../../src/services/audioProcessor";
+import { checkFFmpegAvailable } from "../../src/services/audioProcessor";
 import type { SpotifyTrack, SubscriptionTier } from "../../src/types";
-
-// Placeholder track data - in real app, this comes from search selection
-const PLACEHOLDER_TRACK: SpotifyTrack = {
-  id: "placeholder",
-  name: "Select a track first",
-  uri: "spotify:track:placeholder",
-  artists: [{ id: "0", name: "Artist", uri: "spotify:artist:0" }],
-  album: {
-    id: "0",
-    name: "Album",
-    images: [],
-    uri: "spotify:album:0",
-  },
-  duration_ms: 30000,
-  preview_url: null,
-  external_urls: { spotify: "" },
-};
 
 export default function TrimmerScreen() {
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(20);
+  const [isExporting, setIsExporting] = useState(false);
+  const [ffmpegReady, setFfmpegReady] = useState<boolean | null>(null);
   // For demo purposes, assume free tier; in production, check subscription
   const subscriptionTier: SubscriptionTier = "free";
-  const maxDuration = subscriptionTier === "premium"
+  const isPremium = subscriptionTier === "premium";
+  const maxDuration = isPremium
     ? APP_CONFIG.MAX_CLIP_DURATION_PREMIUM
     : APP_CONFIG.MAX_CLIP_DURATION_FREE;
+  const platformFormat = getPlatformFormat();
+  const platformFormatName = getPlatformFormatName();
 
   function handleTrimChange(newStart: number, newEnd: number) {
     setStartTime(newStart);
     setEndTime(newEnd);
   }
 
-  function handleExport() {
-    // Export logic will be implemented in a later phase
-    console.log("Exporting clip:", {
-      track: selectedTrack?.name,
-      startTime,
-      endTime,
-      duration: endTime - startTime,
-    });
+  async function handleExport() {
+    if (!selectedTrack?.preview_url) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      await exportRingtoneWithAlert({
+        trackId: selectedTrack.id,
+        trackName: selectedTrack.name,
+        previewUrl: selectedTrack.preview_url,
+        startTime,
+        endTime,
+        isPremium,
+        format: platformFormat,
+        bitrate: isPremium ? "320k" : "128k",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   }
+
+  // Check FFmpeg availability on mount
+  useEffect(() => {
+    checkFFmpegAvailable().then(setFfmpegReady).catch(() => setFfmpegReady(false));
+  }, []);
 
   const clipDuration = (endTime - startTime).toFixed(1);
 
@@ -111,33 +119,52 @@ export default function TrimmerScreen() {
         </View>
 
         {/* Export button */}
-        <TouchableOpacity
-          style={[
-            styles.exportButton,
-            (!selectedTrack || !selectedTrack.preview_url) && styles.exportButtonDisabled,
-          ]}
-          onPress={handleExport}
-          disabled={!selectedTrack || !selectedTrack.preview_url}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.exportButtonText}>
-            Export Ringtone ({clipDuration}s)
-          </Text>
-        </TouchableOpacity>
+        {isExporting ? (
+          <View style={[styles.exportButton, styles.exportButtonExporting]}>
+            <ActivityIndicator color="#FFFFFF" size="small" />
+            <Text style={[styles.exportButtonText, { marginLeft: 8 }]}>
+              Creating ringtone...
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.exportButton,
+              (!selectedTrack || !selectedTrack.preview_url || ffmpegReady === false) && styles.exportButtonDisabled,
+            ]}
+            onPress={handleExport}
+            disabled={!selectedTrack || !selectedTrack.preview_url || ffmpegReady === false}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.exportButtonText}>
+              {ffmpegReady === null
+                ? "Loading audio engine..."
+                : ffmpegReady === false
+                ? "Audio engine unavailable"
+                : `Export Ringtone (${clipDuration}s)`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Export options */}
         <View style={styles.exportOptions}>
           <Text style={styles.exportOptionsTitle}>Export Format</Text>
           <View style={styles.formatRow}>
             <View style={[styles.formatBadge, styles.formatActive]}>
-              <Text style={styles.formatBadgeText}>iOS (.m4r)</Text>
+              <Text style={styles.formatBadgeText}>
+                {Platform.OS === "ios" ? "iOS (.m4r)" : "Android (.mp3)"}
+              </Text>
             </View>
             <View style={styles.formatBadge}>
               <Text style={[styles.formatBadgeText, styles.formatInactiveText]}>
-                Android (.mp3)
+                {Platform.OS === "ios" ? "Android (.mp3)" : "iOS (.m4r)"}
               </Text>
             </View>
           </View>
+          <Text style={styles.formatNote}>
+            Auto-detected for {Platform.OS === "ios" ? "iOS" : "Android"}. 
+            Use Share to export for the other platform.
+          </Text>
         </View>
       </View>
     </ScrollView>
@@ -289,5 +316,17 @@ const styles = StyleSheet.create({
   },
   formatInactiveText: {
     color: "#999",
+  },
+  exportButtonExporting: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    opacity: 0.8,
+  },
+  formatNote: {
+    color: "#666",
+    fontSize: 11,
+    fontStyle: "italic",
+    textAlign: "center",
   },
 });

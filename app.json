@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hookring.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": ["audio"],
+        "NSPhotoLibraryUsageDescription": "HookRing needs access to your photo library to save ringtone files.",
+        "NSMicrophoneUsageDescription": "HookRing does not use the microphone."
       }
     },
     "android": {
@@ -24,13 +26,28 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#121212"
       },
-      "package": "com.hookring.app"
+      "package": "com.hookring.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-auth-session",
       "expo-web-browser",
-      "expo-av"
+      "expo-av",
+      "expo-file-system",
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow HookRing to save ringtone files.",
+          "savePhotosPermission": "Allow HookRing to save ringtone files.",
+          "audioPermission": "Allow HookRing to save ringtone audio files."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

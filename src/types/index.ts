@@ -74,6 +74,40 @@ export interface SubscriptionState {
   isActive: boolean;
 }
 
+// Export / ringtone types
+export interface ExportOptions {
+  trackId: string;
+  trackName: string;
+  previewUrl: string;
+  startTime: number;
+  endTime: number;
+  isPremium: boolean;
+  format?: 'm4a' | 'mp3';
+  bitrate?: string;
+}
+
+export interface ExportResult {
+  success: boolean;
+  message: string;
+  details?: {
+    outputPath: string | null;
+    duration: number;
+    fileSize: number;
+    format: 'm4a' | 'mp3';
+  };
+}
+
+export interface ExportHistoryItem {
+  id: string;
+  trackId: string;
+  trackName: string;
+  artistName: string;
+  duration: number;
+  format: string;
+  exportedAt: string;
+  fileSize: number;
+}
+
 // Navigation types
 export type RootStackParamList = {
   login: undefined;
