@@ -1,20 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-
-const subscribeEmail = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    const d = data as { email: string };
-    if (!d.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) {
-      throw new Error("Invalid email address");
-    }
-    return d;
-  })
-  .handler(async ({ data }) => {
-    // TODO: wire to database for production
-    console.log(`New early access signup: ${data.email}`);
-    return { success: true };
-  });
+import { useState, useEffect } from "react";
+import { subscribeEmail, getSignupCount } from "~/lib/analytics";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -27,6 +13,7 @@ function Home() {
       <Hero />
       <HowItWorks />
       <Features />
+      <AppStorePreOrder />
       <Pricing />
       <CTASection />
       <Footer />
@@ -60,9 +47,14 @@ function Nav() {
 
 /* ── Hero ────────────────────────────────────────────────── */
 function Hero() {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    getSignupCount().then((r) => setCount(r.count)).catch(() => {});
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-white">
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-purple-100/60 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-[400px] w-[400px] rounded-full bg-indigo-100/50 blur-3xl" />
@@ -70,7 +62,6 @@ function Hero() {
 
       <div className="relative mx-auto max-w-7xl px-6 py-20 sm:py-28 lg:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          {/* Text */}
           <div className="text-center lg:text-left">
             <span className="inline-block rounded-full bg-purple-100 px-4 py-1.5 text-sm font-semibold text-purple-700 mb-6">
               🎵 Your music, your ringtone
@@ -104,14 +95,18 @@ function Hero() {
                 How it works
               </a>
             </div>
-            <div className="mt-6 flex items-center justify-center gap-4 text-sm text-gray-500 lg:justify-start">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 lg:justify-start">
               <span>✓ 3 free ringtones/month</span>
               <span>✓ No credit card</span>
               <span>✓ iOS &amp; Android</span>
+              {count !== null && count > 0 && (
+                <span className="text-purple-600 font-semibold">
+                  {count.toLocaleString()}+ signed up
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Mockup */}
           <div className="flex justify-center lg:justify-end">
             <div className="relative">
               <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-purple-400/20 to-indigo-500/20 blur-2xl" />
@@ -275,11 +270,70 @@ function Features() {
   );
 }
 
+/* ── App Store Pre-Order ─────────────────────────────────── */
+function AppStorePreOrder() {
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-indigo-950 to-gray-900 py-20 sm:py-28">
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
+        <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-purple-500 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-indigo-500 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-4xl px-6 text-center">
+        <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-purple-300 mb-6 backdrop-blur-sm">
+          🚀 Coming Soon
+        </span>
+        <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
+          HookRing is coming to the App Store
+        </h2>
+        <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+          We're putting the finishing touches on the app. Be first in line when
+          it drops on iOS and Android.
+        </p>
+
+        {/* Store badges */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          {/* App Store badge */}
+          <a
+            href="#cta"
+            className="inline-flex items-center gap-3 rounded-xl bg-black px-6 py-4 text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 border border-gray-700"
+          >
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+            </svg>
+            <div className="text-left">
+              <div className="text-xs text-gray-400">Download on the</div>
+              <div className="text-lg font-semibold">App Store</div>
+            </div>
+          </a>
+
+          {/* Google Play badge */}
+          <a
+            href="#cta"
+            className="inline-flex items-center gap-3 rounded-xl bg-black px-6 py-4 text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 border border-gray-700"
+          >
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 010 1.732l-2.807 1.626L15.206 12l2.492-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
+            </svg>
+            <div className="text-left">
+              <div className="text-xs text-gray-400">Get it on</div>
+              <div className="text-lg font-semibold">Google Play</div>
+            </div>
+          </a>
+        </div>
+
+        <p className="mt-8 text-sm text-gray-500">
+          Sign up below to get notified the moment we launch.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /* ── Pricing ─────────────────────────────────────────────── */
 function Pricing() {
   return (
     <section className="relative overflow-hidden bg-gray-900 py-20 sm:py-28">
-      {/* Waveform background */}
       <div className="absolute inset-0 opacity-20 pointer-events-none">
         <img
           src="/waveform-bg.png"
@@ -303,7 +357,6 @@ function Pricing() {
         </div>
 
         <div className="mt-16 grid gap-8 lg:grid-cols-2 max-w-3xl mx-auto">
-          {/* Free tier */}
           <div className="rounded-2xl border border-gray-700 bg-gray-800/50 p-8 backdrop-blur-sm">
             <h3 className="text-xl font-bold text-white">Free</h3>
             <p className="mt-1 text-gray-400">For casual ringtone fans</p>
@@ -328,7 +381,6 @@ function Pricing() {
             </ul>
           </div>
 
-          {/* Pro tier */}
           <div className="relative rounded-2xl border-2 border-purple-500 bg-gray-800/80 p-8 backdrop-blur-sm">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-1 text-sm font-semibold text-white">
               Most Popular
@@ -461,7 +513,7 @@ function Footer() {
             HookRing
           </div>
           <div className="flex gap-8 text-sm text-gray-500">
-            <a href="#" className="hover:text-gray-300 transition-colors">Privacy</a>
+            <a href="/privacy" className="hover:text-gray-300 transition-colors">Privacy</a>
             <a href="#" className="hover:text-gray-300 transition-colors">Terms</a>
             <a href="mailto:hello@hookring.app" className="hover:text-gray-300 transition-colors">Contact</a>
           </div>
